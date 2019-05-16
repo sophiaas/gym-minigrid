@@ -45,6 +45,7 @@ OBJECT_TO_IDX = {
     'goal'          : 8,
     'lava'          : 9,
     'agent'         : 10,
+    'light'         : 11
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -124,6 +125,32 @@ class Goal(WorldObj):
             (CELL_PIXELS,           0),
             (0          ,           0)
         ])
+        
+class Light(WorldObj):
+    def __init__(self):
+        super().__init__('light', 'blue')
+        self.is_on = False
+
+    def can_overlap(self):
+        return True
+
+    def render(self, r):
+        self._set_color(r)
+        r.drawPolygon([
+            (0          , CELL_PIXELS),
+            (CELL_PIXELS, CELL_PIXELS),
+            (CELL_PIXELS,           0),
+            (0          ,           0)
+        ])
+        
+    def toggle(self, env, pos):
+        # If the player has the right key to open the door
+        if self.is_on:
+            return False
+
+        self.is_on = not self.is_on
+        self.color = 'yellow'
+        return True
 
 class Floor(WorldObj):
     """
