@@ -685,7 +685,7 @@ class MiniGridEnv(gym.Env):
         done = 6
 
         # Toggle while standing on object
-        toggle_in_place = 7
+        # toggle_in_place = 7
 
     def __init__(
         self,
@@ -695,7 +695,8 @@ class MiniGridEnv(gym.Env):
         max_steps=100,
         see_through_walls=False,
         seed=1337,
-        agent_view_size=7
+        agent_view_size=7,
+        custom_actions = False
     ):
         # Can't set both grid_size and width/height
         if grid_size:
@@ -704,10 +705,11 @@ class MiniGridEnv(gym.Env):
             height = grid_size
 
         # Action enumeration for this environment
-        self.actions = MiniGridEnv.Actions
+        if not custom_actions:
+            self.actions = MiniGridEnv.Actions
 
         # Actions are discrete integer values
-        self.action_space = spaces.Discrete(len(self.actions))
+            self.action_space = spaces.Discrete(len(self.actions))
 
         # Number of cells (width and height) in the agent view
         self.agent_view_size = agent_view_size
@@ -1173,8 +1175,8 @@ class MiniGridEnv(gym.Env):
             if fwd_cell:
                 fwd_cell.toggle(self, fwd_pos)
 
-        elif action == self.actions.toggle_in_place:
-            fwd_pos = curr_cell.toggle_in_place(self, curr_pos)
+        # elif action == self.actions.toggle_in_place:
+        #     fwd_pos = curr_cell.toggle_in_place(self, curr_pos)
 
 
         # Done action (not used by default)
