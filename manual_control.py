@@ -60,6 +60,8 @@ def main():
 
         elif keyName == 'RETURN':
             action = env.actions.done
+        elif keyName == 'ALT':
+            action = env.actions.toggle_in_place
 
         else:
             print("unknown key %s" % keyName)

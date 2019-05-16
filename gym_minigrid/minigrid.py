@@ -125,10 +125,10 @@ class Goal(WorldObj):
             (CELL_PIXELS,           0),
             (0          ,           0)
         ])
-        
+
 class Light(WorldObj):
-    def __init__(self):
-        super().__init__('light', 'blue')
+    def __init__(self, color='blue'):
+        super().__init__('light', color)
         self.is_on = False
 
     def can_overlap(self):
@@ -142,8 +142,8 @@ class Light(WorldObj):
             (CELL_PIXELS,           0),
             (0          ,           0)
         ])
-        
-    def toggle(self, env, pos):
+
+    def toggle_in_place(self, env, pos):
         # If the player has the right key to open the door
         if self.is_on:
             return False
@@ -684,6 +684,9 @@ class MiniGridEnv(gym.Env):
         # Done completing task
         done = 6
 
+        # Toggle while standing on object
+        toggle_in_place = 7
+
     def __init__(
         self,
         grid_size=None,
@@ -1124,9 +1127,11 @@ class MiniGridEnv(gym.Env):
 
         # Get the position in front of the agent
         fwd_pos = self.front_pos
+        curr_pos = self.agent_pos
 
         # Get the contents of the cell in front of the agent
         fwd_cell = self.grid.get(*fwd_pos)
+        curr_cell = self.grid.get(*curr_pos)
 
         # Rotate left
         if action == self.actions.left:
@@ -1167,6 +1172,10 @@ class MiniGridEnv(gym.Env):
         elif action == self.actions.toggle:
             if fwd_cell:
                 fwd_cell.toggle(self, fwd_pos)
+
+        elif action == self.actions.toggle_in_place:
+            fwd_pos = curr_cell.toggle_in_place(self, curr_pos)
+
 
         # Done action (not used by default)
         elif action == self.actions.done:
