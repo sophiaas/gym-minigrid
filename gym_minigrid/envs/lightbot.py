@@ -15,11 +15,11 @@ def gen_fractal(stage, primitive=None, mask=None, padding=2, half=False):
     shape = primitive.shape
     for stage in range(stage):
         tiled = np.tile(primitive, shape)
-        mask = mask = np.repeat(np.repeat(primitive, shape[0], axis=0), shape[1], axis=1)
+        mask = np.repeat(np.repeat(primitive, shape[0], axis=0), shape[1], axis=1)
         new_primitive = tiled * mask
         primitive = new_primitive
     if half:
-        primitive = primitive[:, :int(len(primitive)/2)+2]
+        primitive = primitive[int(len(primitive)/3)+1:, :int(len(primitive)/2)+2]
     size = list(np.array(primitive.shape) + padding * 2)
     x, y = np.nonzero(primitive)
     idxs = [[a+padding, b+padding] for a, b in zip(x,y)]
