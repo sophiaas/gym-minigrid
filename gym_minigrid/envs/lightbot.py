@@ -56,9 +56,7 @@ for i in range(1,4):
 
 
 class LightbotEnv(MiniGridEnv):
-    """
-    Empty grid environment, no obstacles, sparse reward
-    """
+    
     class Actions(IntEnum):
         toggle = 0
         jump = 1
@@ -90,6 +88,7 @@ class LightbotEnv(MiniGridEnv):
         self.light_idxs = puzzles[puzzle_name]['light_idxs']
         self.reward_fn = [float(x) for x in reward_fn.split(',')]
         self.toggle_ontop = toggle_ontop
+        self.hierarchical_args = hierarchical_args
         
         super().__init__(
             width = width,
@@ -103,7 +102,6 @@ class LightbotEnv(MiniGridEnv):
         self.actions = LightbotEnv.Actions
         
         if hierarchical_args is not None:
-            self.hierarchical_args = hierarchical_args
             self.set_action_space(hierarchical_args['num_h_actions'])
         else:
             self.set_action_space(0)
@@ -236,15 +234,16 @@ class LightbotEnv(MiniGridEnv):
             primitive = False if np.any([x >= self.n_actions for x in h_action]) else True
         return h_action
     
-    def set_action_space(self, num_h_actions):
+    def set_action_space(self, num_h_actions=0):
         # Actions are discrete integer values
         self.n_actions = len(self.actions)
         self.num_h_actions = num_h_actions
-        if self.hierarchical_args['h_dictionary_path'] is not None:
-            path = self.hierarchical_args['h_dictionary_path']
-            self.h_actions = pickle.load(open('ppo/dictionaries/'+path+'.p', "rb" ))
-        else:
-            self.h_actions = {a:[] for a in range(self.n_actions, self.num_h_actions+self.n_actions)}
+        if self.hierarchical_args is not None:
+            if self.hierarchical_args['h_dictionary_path'] is not None:
+                path = self.hierarchical_args['h_dictionary_path']
+                self.h_actions = pickle.load(open('ppo/dictionaries/'+path+'.p', "rb" ))
+            else:
+                self.h_actions = {a:[] for a in range(self.n_actions, self.num_h_actions+self.n_actions)}
         self.open_h_action_index = self.n_actions
         self.action_space = spaces.Discrete(self.n_actions+self.num_h_actions)
     
