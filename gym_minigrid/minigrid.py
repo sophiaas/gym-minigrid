@@ -143,14 +143,13 @@ class Light(WorldObj):
             (0          ,           0)
         ])
 
-    def toggle_in_place(self, env, pos):
-        # If the player has the right key to open the door
+    def toggle(self):
         if self.is_on:
             return False
-
-        self.is_on = not self.is_on
-        self.color = 'yellow'
-        return True
+        else:
+            self.is_on = not self.is_on
+            self.color = 'yellow'
+            return True
 
 class Floor(WorldObj):
     """
