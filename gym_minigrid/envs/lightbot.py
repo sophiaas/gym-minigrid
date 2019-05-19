@@ -3,7 +3,7 @@ from gym_minigrid.register import register
 import torch
 import pickle
 
-def gen_fractal(stage, primitive=None, mask=None, padding=2, half=False):
+def gen_fractal(stage, primitive=None, mask=None, padding=2, portion=None):
     if primitive is None:
         primitive = np.array([
             [1,1,1],
@@ -14,12 +14,16 @@ def gen_fractal(stage, primitive=None, mask=None, padding=2, half=False):
         mask = primitive
     shape = primitive.shape
     for stage in range(stage):
+        
         tiled = np.tile(primitive, shape)
         mask = np.repeat(np.repeat(primitive, shape[0], axis=0), shape[1], axis=1)
         new_primitive = tiled * mask
         primitive = new_primitive
-    if half:
-        primitive = primitive[int(len(primitive)/3):, :int(len(primitive)/2)+2]
+    if portion:
+        xs = portion['xs']
+        ys = portion['ys']
+        unit = int(len(primitive)/3)
+        primitive = primitive[xs[0]*unit:xs[1]*unit, ys[0]*unit:ys[1]*unit]
     size = list(np.array(primitive.shape) + padding * 2)
     x, y = np.nonzero(primitive)
     idxs = [[a+padding, b+padding] for a, b in zip(x,y)]
@@ -48,12 +52,16 @@ for i in range(4):
     for p in primitives.keys():
         size, idxs = gen_fractal(i, primitives[p])
         puzzles['fractal_'+p+'_'+str(i)] = {'size': size, 'light_idxs': idxs}
-
-for i in range(1,4):
-    for p in primitives.keys():
-        size, idxs = gen_fractal(i, primitives[p], half=True)
-        puzzles['fractal_'+p+'_'+str(i-1)+'-1'] = {'size': size, 'light_idxs': idxs}
-
+        
+portions = [
+    {'xs': [1,2], 'ys': [0,2]},
+    {'xs': [1,3], 'ys': [0,2]},
+    {'xs': [1,3], 'ys': [0,3]}
+]
+for i in range(1, 4):
+    for j, p in enumerate(portions):
+        size, idxs = gen_fractal(i, primitives['cross'], portion=p)
+        puzzles['fractal_cross_'+str(i-1)+'-'+str(j)] = {'size': size, 'light_idxs': idxs}    
 
 class LightbotEnv(MiniGridEnv):
     
