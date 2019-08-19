@@ -1,6 +1,6 @@
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
-import torch
+# import torch
 import pickle
 
 def gen_fractal(stage, primitive=None, mask=None, padding=2, portion=None):
@@ -61,7 +61,9 @@ portions = [
 for i in range(1, 4):
     for j, p in enumerate(portions):
         size, idxs = gen_fractal(i, primitives['cross'], portion=p)
-        puzzles['fractal_cross_'+str(i-1)+'-'+str(j)] = {'size': size, 'light_idxs': idxs}    
+        puzzles['fractal_cross_'+str(i-1)+'-'+str(j)] = {'size': size, 'light_idxs': idxs}   
+        
+puzzles['test'] = {'size': 9, 'light_idxs': [[5,5]]}
 
 class LightbotEnv(MiniGridEnv):
     
@@ -84,6 +86,7 @@ class LightbotEnv(MiniGridEnv):
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
+        self.episode = 0
         
         size = puzzles[puzzle_name]['size']
         if type(size) == list:
@@ -97,6 +100,7 @@ class LightbotEnv(MiniGridEnv):
         self.reward_fn = [float(x) for x in reward_fn.split(',')]
         self.toggle_ontop = toggle_ontop
         self.hierarchical_args = hierarchical_args
+        self.name = 'lightbot_minigrid'
         
         super().__init__(
             width = width,
@@ -195,8 +199,8 @@ class LightbotEnv(MiniGridEnv):
         done = False     
 
         # Rotate left
-        if type(action) == torch.Tensor:
-            action = action.item()
+#         if type(action) == torch.Tensor:
+#             action = action.item()
             
         if action < self.n_actions:
             reward, done = self.make_move(action)
@@ -225,7 +229,8 @@ class LightbotEnv(MiniGridEnv):
 
         if self.step_count >= self.max_steps:
             done = True
-
+        if done:
+            self.episode += 1
         obs = self.gen_obs()
         return obs, reward, done, frame_update
 
@@ -260,6 +265,15 @@ class LightbotEnv(MiniGridEnv):
     
     def get_obs_dim(self):
         return self.observation_space.shape
+    
+    def get_frame_count(self):
+        return self.step_count
+    
+    def _seed(self, seed):
+        np.random.seed(seed)
+    
+    def get_curr_pos(self):
+        return self.agent_pos
 
 
 register(
