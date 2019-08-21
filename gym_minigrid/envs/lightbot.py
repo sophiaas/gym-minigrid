@@ -183,8 +183,8 @@ class LightbotEnv(MiniGridEnv):
         data = {
             'coords': self.agent_pos,
             'direction': self.agent_dir,
-            'light': 1 if self.grid.get(*self.agent_pos).type == 'light' else 0,
-            'light_on': 1 if self.grid.get(*self.agent_pos).is_on else 0
+            'light': 1 if self.grid.get(self.agent_pos).type == 'light' else 0,
+            'light_on': 1 if self.grid.get(self.agent_pos).is_on else 0
         }
         return data
 
