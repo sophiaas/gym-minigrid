@@ -65,7 +65,7 @@ for i in range(1, 4):
         
 puzzles['test'] = {'size': 9, 'light_idxs': [[5,5]]}
 
-class LightbotMiniGrid(MiniGridEnv):
+class Lightbot(MiniGridEnv):
     
     class Actions(IntEnum):
         toggle = 0
