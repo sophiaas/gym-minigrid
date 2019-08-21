@@ -119,11 +119,10 @@ class LightbotEnv(MiniGridEnv):
 #             self.set_action_space(hierarchical_args['num_h_actions'])
 #         else:
 #             self.set_action_space(0)
-        self.action_space = spaces.Discrete(self.n_actions+self.num_h_actions)
+        self.action_space = spaces.Discrete(5)
         # Action enumeration for this environment
         
         print('action space: {}'.format(self.action_space))
-        print('hierarchical args {}'.format(self.hierarchical_args))
 
 
     def _gen_grid(self, width, height):
