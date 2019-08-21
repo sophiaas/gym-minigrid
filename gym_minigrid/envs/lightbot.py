@@ -65,7 +65,7 @@ for i in range(1, 4):
         
 puzzles['test'] = {'size': 9, 'light_idxs': [[5,5]]}
 
-class LightbotEnv(MiniGridEnv):
+class LightbotMiniGrid(MiniGridEnv):
     
     class Actions(IntEnum):
         toggle = 0
@@ -74,21 +74,23 @@ class LightbotEnv(MiniGridEnv):
         right = 3
         left = 4
 
-    def __init__(
-        self,
-        puzzle_name,
-        agent_start_pos=None,
-        agent_start_dir=None,
-        max_steps=100,
-        reward_fn='100,-1,-1,-1',
-        toggle_ontop=False,
-        hierarchical_args=None
-    ):
-        self.agent_start_pos = agent_start_pos
-        self.agent_start_dir = agent_start_dir
+    def __init__(self, config):
+        
+        
+#         puzzle_name,
+#         agent_start_pos=None,
+#         agent_start_dir=None,
+#         max_steps=100,
+#         reward_fn='100,-1,-1,-1',
+#         toggle_ontop=False
+# #         hierarchical_args=None
+#     ):
+        self.config = config
+        self.agent_start_pos = config.agent_start_pos
+        self.agent_start_dir = config.agent_start_dir
         self.episode = 0
         
-        size = puzzles[puzzle_name]['size']
+        size = puzzles[config.puzzle_name]['size']
         if type(size) == list:
             width, height = size
         else:
@@ -96,16 +98,16 @@ class LightbotEnv(MiniGridEnv):
             
         print('size {}'.format(size))
             
-        self.light_idxs = puzzles[puzzle_name]['light_idxs']
-        self.reward_fn = [float(x) for x in reward_fn.split(',')]
-        self.toggle_ontop = toggle_ontop
-        self.hierarchical_args = hierarchical_args
+        self.light_idxs = puzzles[config.puzzle_name]['light_idxs']
+        self.reward_fn = [float(x) for x in config.reward_fn.split(',')]
+        self.toggle_ontop = config.toggle_ontop
+#         self.hierarchical_args = hierarchical_args
         self.name = 'lightbot_minigrid'
         
         super().__init__(
             width = width,
             height = height,
-            max_steps=max_steps,
+            max_steps=config.max_steps,
             # Set this to True for maximum speed
             see_through_walls=True,
             custom_actions=True
@@ -113,10 +115,11 @@ class LightbotEnv(MiniGridEnv):
         
         self.actions = LightbotEnv.Actions
         
-        if hierarchical_args is not None:
-            self.set_action_space(hierarchical_args['num_h_actions'])
-        else:
-            self.set_action_space(0)
+#         if hierarchical_args is not None:
+#             self.set_action_space(hierarchical_args['num_h_actions'])
+#         else:
+#             self.set_action_space(0)
+        self.action_space = spaces.Discrete(self.n_actions+self.num_h_actions)
         # Action enumeration for this environment
         
         print('action space: {}'.format(self.action_space))
@@ -190,40 +193,45 @@ class LightbotEnv(MiniGridEnv):
             assert False, "unknown action"
             
         if self.lights_on == self.num_lights:
-            reward = self.reward_fn[0]
+            reward = self.config.reward_fn[0]
             done = True
         return reward, done
+    
+    def get_data(self):
+        data = {
+            'coords': self.agent_pos,
+            'direction': self.agent_dir,
+            'light': 1 if curr_cell.type == 'light' else 0,
+            'light_on': 1 if curr_cell.is_on else 0
+        }
+        return data
 
     def step(self, action):
         reward = self.reward_fn[-1]
         done = False     
 
-        # Rotate left
-#         if type(action) == torch.Tensor:
-#             action = action.item()
-            
-        if action < self.n_actions:
-            reward, done = self.make_move(action)
-            self.step_count += 1
-            frame_update = 1
+#         if action < self.n_actions:
+        reward, done = self.make_move(action)
+        self.step_count += 1
+        frame_update = 1
         
-        else:
-            h_action = self.h_actions[action]
-            reward = []
-            h_action = self.uncompress_h_action(h_action)
-            i = 0
-            frame_update = len(h_action)
-            for a in h_action:
-                i += 1
-                self.step_count += 1
-                r, done = self.make_move(a)
-                reward.append(r)
-                if self.step_count >= self.max_steps:
-                    done = True
-                if done:
-#                     self.reward = reward
-                    frame_update = i
-                    break
+#         else:
+#             h_action = self.h_actions[action]
+#             reward = []
+#             h_action = self.uncompress_h_action(h_action)
+#             i = 0
+#             frame_update = len(h_action)
+#             for a in h_action:
+#                 i += 1
+#                 self.step_count += 1
+#                 r, done = self.make_move(a)
+#                 reward.append(r)
+#                 if self.step_count >= self.max_steps:
+#                     done = True
+#                 if done:
+# #                     self.reward = reward
+#                     frame_update = i
+#                     break
             
 #             self.reward = reward
 
@@ -232,33 +240,34 @@ class LightbotEnv(MiniGridEnv):
         if done:
             self.episode += 1
         obs = self.gen_obs()
-        return obs, reward, done, frame_update
+        data = self.get_data()
+        return obs, reward, done, data
 
-    def uncompress_h_action(self, h_action):
-        primitive = False if np.any([x >= self.n_actions for x in h_action]) else True
-        while not primitive:
-            primitive_sequence = []
-            for x in h_action:
-                if x < self.n_actions:
-                    primitive_sequence.append(x)
-                else: 
-                    primitive_sequence += self.h_actions[x]
-            h_action = primitive_sequence
-            primitive = False if np.any([x >= self.n_actions for x in h_action]) else True
-        return h_action
+#     def uncompress_h_action(self, h_action):
+#         primitive = False if np.any([x >= self.n_actions for x in h_action]) else True
+#         while not primitive:
+#             primitive_sequence = []
+#             for x in h_action:
+#                 if x < self.n_actions:
+#                     primitive_sequence.append(x)
+#                 else: 
+#                     primitive_sequence += self.h_actions[x]
+#             h_action = primitive_sequence
+#             primitive = False if np.any([x >= self.n_actions for x in h_action]) else True
+#         return h_action
     
-    def set_action_space(self, num_h_actions=0):
-        # Actions are discrete integer values
-        self.n_actions = len(self.actions)
-        self.num_h_actions = num_h_actions
-        if self.hierarchical_args is not None:
-            if self.hierarchical_args['h_dictionary_path'] is not None:
-                path = self.hierarchical_args['h_dictionary_path']
-                self.h_actions = pickle.load(open('ppo/dictionaries/'+path+'.p', "rb" ))
-            else:
-                self.h_actions = {a:[] for a in range(self.n_actions, self.num_h_actions+self.n_actions)}
-        self.open_h_action_index = self.n_actions
-        self.action_space = spaces.Discrete(self.n_actions+self.num_h_actions)
+#     def set_action_space(self, num_h_actions=0):
+#         # Actions are discrete integer values
+#         self.n_actions = len(self.actions)
+#         self.num_h_actions = num_h_actions
+# #         if self.hierarchical_args is not None:
+# #             if self.hierarchical_args['h_dictionary_path'] is not None:
+# #                 path = self.hierarchical_args['h_dictionary_path']
+# #                 self.h_actions = pickle.load(open('ppo/dictionaries/'+path+'.p', "rb" ))
+# #             else:
+# #                 self.h_actions = {a:[] for a in range(self.n_actions, self.num_h_actions+self.n_actions)}
+#         self.open_h_action_index = self.n_actions
+#         self.action_space = spaces.Discrete(self.n_actions+self.num_h_actions)
     
     def get_num_actions(self):
         return self.action_space.n
@@ -278,5 +287,5 @@ class LightbotEnv(MiniGridEnv):
 
 register(
     id='MiniGrid-Lightbot-v0',
-    entry_point='gym_minigrid.envs:LightbotEnv'
+    entry_point='gym_minigrid.envs:Lightbot'
 )
