@@ -121,13 +121,13 @@ class LightbotEnv(MiniGridEnv):
 
 
         # Place the agent
-        print('agent start pos: {}'.format(self.agent_start_pos))
-        if self.agent_start_pos is not None:
-            self.start_pos = self.agent_start_pos
-            self.start_dir = self.agent_start_dir
-        else:
-            self.place_agent()
-
+#         print('agent start pos: {}'.format(self.agent_start_pos))
+#         if self.agent_start_pos is not None:
+#             self.start_pos = self.agent_start_pos
+#             self.start_dir = self.agent_start_dir
+#         else:
+        pos = self.place_agent()
+        print('start pos: {}'.format(pos))
         self.mission = "turn on all of the lights"
     
     def make_move(self, action):
