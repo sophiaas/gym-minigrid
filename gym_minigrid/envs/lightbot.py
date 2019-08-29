@@ -78,16 +78,14 @@ class LightbotEnv(MiniGridEnv):
         self.config = config
         self.agent_start_pos = config.agent_start_pos
         self.agent_start_dir = config.agent_start_dir
-        self.episode = 0
+#         self.episode = 0
         
         size = puzzles[config.puzzle_name]['size']
         if type(size) == list:
             width, height = size
         else:
             height, width = size, size
-            
-        print('size {}'.format(size))
-            
+                        
         self.light_idxs = puzzles[config.puzzle_name]['light_idxs']
         self.reward_fn = [float(x) for x in config.reward_fn.split(',')]
         self.toggle_ontop = config.toggle_ontop
@@ -97,6 +95,7 @@ class LightbotEnv(MiniGridEnv):
             width = width,
             height = height,
             max_steps=config.max_steps,
+            agent_view_size=config.agent_view_size,
             # Set this to True for maximum speed
             see_through_walls=True,
             custom_actions=True
@@ -104,7 +103,6 @@ class LightbotEnv(MiniGridEnv):
         
         self.actions = LightbotEnv.Actions
         self.action_space = spaces.Discrete(5)        
-        print('action space: {}'.format(self.action_space))
 
 
     def _gen_grid(self, width, height):
@@ -127,7 +125,6 @@ class LightbotEnv(MiniGridEnv):
 #             self.start_dir = self.agent_start_dir
 #         else:
         pos = self.place_agent()
-        print('start pos: {}'.format(pos))
         self.mission = "turn on all of the lights"
     
     def make_move(self, action):
@@ -175,16 +172,16 @@ class LightbotEnv(MiniGridEnv):
             assert False, "unknown action"
             
         if self.lights_on == self.num_lights:
-            reward = self.config.reward_fn[0]
+            reward = self.reward_fn[0]
             done = True
         return reward, done
     
     def get_data(self):
         data = {
             'coords': self.agent_pos,
-            'direction': self.agent_dir,
-            'light': 1 if self.grid.get(self.agent_pos).type == 'light' else 0,
-            'light_on': 1 if self.grid.get(self.agent_pos).is_on else 0
+            'direction': self.agent_dir
+#             'light': 1 if self.grid.get(self.agent_pos).type == 'light' else 0,
+#             'light_on': 1 if self.grid.get(self.agent_pos).is_on else 0
         }
         return data
 
@@ -193,15 +190,14 @@ class LightbotEnv(MiniGridEnv):
         done = False     
 
         reward, done = self.make_move(action)
-        self.step_count += 1
-        frame_update = 1
+#         self.step_count += 1
+#         frame_update = 1
 
-        if self.step_count >= self.max_steps:
-            done = True
-        if done:
-            self.episode += 1
+#         if self.step_count >= self.max_steps:
+#             done = True
+#         if done:
+#             self.episode += 1
         obs = self.gen_obs()
-        print('agent_pos: {}'.format(self.agent_pos))
         data = self.get_data()
         return obs, reward, done, data
     
