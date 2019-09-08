@@ -2,6 +2,19 @@ from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 # import torch
 import pickle
+import copy
+
+# Map of agent direction indices to vectors
+DIR_TO_VEC = [
+    # Pointing right (positive X)
+    np.array((1, 0)),
+    # Down (positive Y)
+    np.array((0, 1)),
+    # Pointing left (negative X)
+    np.array((-1, 0)),
+    # Up (negative Y)
+    np.array((0, -1)),
+]
 
 def gen_fractal(stage, primitive=None, mask=None, padding=2, portion=None):
     if primitive is None:
@@ -102,8 +115,47 @@ class LightbotEnv(MiniGridEnv):
         )
         
         self.actions = LightbotEnv.Actions
-        self.action_space = spaces.Discrete(5)        
+        self.action_space = spaces.Discrete(5)   
+        curr_cell = self.grid.get(*self.agent_pos) 
+        self.raw_state = {'coords': copy.deepcopy(self.agent_pos),
+                          'direction': copy.deepcopy(self.agent_dir),
+                          'lights_on': copy.deepcopy(self.lights_on),
+                          'toggle': False}
 
+    def reset(self):
+        # Generate a new random grid at the start of each episode
+        # To keep the same grid for each episode, call env.seed() with
+        # the same seed before calling env.reset()
+        self._gen_grid(self.width, self.height)
+
+        # These fields should be defined by _gen_grid
+        assert self.start_pos is not None
+        assert self.start_dir is not None
+
+        # Check that the agent doesn't overlap with an object
+        start_cell = self.grid.get(*self.start_pos)
+        assert start_cell is None or start_cell.can_overlap()
+
+        # Place the agent in the starting position and direction
+        self.agent_pos = self.start_pos
+        self.agent_dir = self.start_dir
+
+        # Item picked up, being carried, initially nothing
+        self.carrying = None
+
+        # Step count since episode start
+        self.step_count = 0
+        
+        # Generate raw state
+        self.raw_state = {'coords': copy.deepcopy(self.agent_pos),
+                          'direction': copy.deepcopy(self.agent_dir),
+                          'lights_on': copy.deepcopy(self.lights_on),
+                          'toggle': False}
+
+        # Return first observation
+        obs = self.gen_obs()
+        return obs
+    
 
     def _gen_grid(self, width, height):
         # Create an empty grid
@@ -117,52 +169,48 @@ class LightbotEnv(MiniGridEnv):
         for i in self.light_idxs:
             self.grid.set(i[0], i[1], Light())
 
-
         # Place the agent
-#         print('agent start pos: {}'.format(self.agent_start_pos))
-#         if self.agent_start_pos is not None:
-#             self.start_pos = self.agent_start_pos
-#             self.start_dir = self.agent_start_dir
-#         else:
         pos = self.place_agent()
         self.mission = "turn on all of the lights"
     
-    def make_move(self, action):
+    def make_move(self, raw_state, action):
+        toggle = False
+        agent_dir = copy.deepcopy(raw_state['direction'])
+        agent_pos = copy.deepcopy(raw_state['coords'])
+        lights_on = copy.deepcopy(raw_state['lights_on'])
+        
         # Get the position in front of the agent
-        fwd_pos = self.front_pos
-        curr_pos = self.agent_pos
-        
-        # Get the contents of the cell in front of the agent
-        fwd_cell = self.grid.get(*fwd_pos)
-        curr_cell = self.grid.get(*curr_pos)   
-        
+        fwd_pos = DIR_TO_VEC[agent_dir] + agent_pos
+        fwd_cell = copy.deepcopy(self.grid.get(*fwd_pos))
+        curr_cell = copy.deepcopy(self.grid.get(*agent_pos))
+                
         reward = self.reward_fn[-1]
         done = False
         if action == self.actions.left:
-            self.agent_dir -= 1
-            if self.agent_dir < 0:
-                self.agent_dir += 4
+            agent_dir -= 1
+            if agent_dir < 0:
+                agent_dir += 4
 
         # Rotate right
         elif action == self.actions.right:
-            self.agent_dir = (self.agent_dir + 1) % 4
+            agent_dir = (self.agent_dir + 1) % 4
 
         # Move forward
         elif action == self.actions.forward:
             if fwd_cell == None or fwd_cell.can_overlap():
-                self.agent_pos = fwd_pos
+                agent_pos = fwd_pos
 
         # Toggle/activate an object
         elif action == self.actions.toggle:
             if self.toggle_ontop:
                 if curr_cell != None and curr_cell.type == 'light' and not curr_cell.is_on:
-                    success = curr_cell.toggle()
-                    self.lights_on += 1
+                    toggle = True
+                    lights_on += 1
                     reward = self.reward_fn[1]
             else:
                 if fwd_cell != None and fwd_cell.type == 'light' and not fwd_cell.is_on:
-                    success = fwd_cell.toggle()
-                    self.lights_on += 1
+                    toggle = True
+                    lights_on += 1
                     reward = self.reward_fn[1]
 
         elif action == self.actions.jump:
@@ -171,35 +219,39 @@ class LightbotEnv(MiniGridEnv):
         else:
             assert False, "unknown action"
             
-        if self.lights_on == self.num_lights:
+        if lights_on == self.num_lights:
             reward = self.reward_fn[0]
             done = True
-        return reward, done
+        raw_state = {'lights_on': lights_on, 
+                     'coords': agent_pos, 
+                     'direction': agent_dir, 
+                     'toggle': toggle}
+        return raw_state, reward, done
     
     def get_data(self):
-        data = {
-            'coords': self.agent_pos,
-            'direction': self.agent_dir
-#             'light': 1 if self.grid.get(self.agent_pos).type == 'light' else 0,
-#             'light_on': 1 if self.grid.get(self.agent_pos).is_on else 0
-        }
-        return data
+        return self.raw_state
 
     def step(self, action):
         reward = self.reward_fn[-1]
         done = False     
 
-        reward, done = self.make_move(action)
-#         self.step_count += 1
-#         frame_update = 1
-
-#         if self.step_count >= self.max_steps:
-#             done = True
-#         if done:
-#             self.episode += 1
+        raw_state, reward, done = self.make_move(self.raw_state, action)
+        self.agent_pos = raw_state['coords']
+        self.agent_dir = raw_state['direction']
+        self.lights_on = raw_state['lights_on']
+        
+        if raw_state['toggle']:
+            curr_cell = self.grid.get(*self.agent_pos)
+            if self.toggle_ontop:
+                curr_cell.toggle()
+            else:
+                fwd_pos = self.front_pos
+                fwd_cell = self.grid.get(*fwd_pos)
+                fwd_cell.toggle()
+                
         obs = self.gen_obs()
-        data = self.get_data()
-        return obs, reward, done, data
+        self.raw_state = raw_state
+        return obs, reward, done, raw_state
     
     def get_num_actions(self):
         return self.action_space.n
